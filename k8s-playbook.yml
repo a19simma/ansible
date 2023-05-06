@@ -1,0 +1,137 @@
+- name: set hostname and hosts file
+  hosts: '*'
+  gather_facts: no
+  tasks:
+    - name: copy hosts file
+      ansible.builtin.copy:
+        src: ./files/hosts
+        dest: /etc/
+        mode: '0644'
+    - name: set hostname
+      ansible.builtin.hostname:
+        name: '{{ inventory_hostname }}'
+
+- name: setup Firewall
+  hosts: '*'
+  gather_facts: no
+  tasks:
+    - name: install ufw
+      ansible.builtin.apt:
+        name: ufw
+        state: present
+
+    - name: configure ufw
+      ufw:
+        rule: allow
+        port: '{{ item }}'
+        proto: tcp
+      loop:
+        - '22'
+        - '6443'
+        - '8443'
+        - 2379:2380
+        - '10250'
+        - '10257'
+        - '10259'
+        - 30000:32767
+    - name: Enable UFW
+      ufw:
+        state: disabled
+
+- name: install kubeadm and required packages
+  hosts: '*'
+  gather_facts: yes
+  tasks: 
+    - name: install dependencies
+      ansible.builtin.apt:
+        name: '{{ item }}'
+        state: present
+      loop:
+        - nfs-common
+        - ca-certificates
+        - curl
+        - gnupg
+        - lsb-release
+        - apt-transport-https
+
+    - name: create apt keyring
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: a+rwx
+        recurse: yes
+
+    - name: add key
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/debian/gpg
+        state: present
+        keyring: /etc/apt/keyrings/docker.gpg
+
+    - name: add repo
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: apt update
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: install docker and containerd
+      ansible.builtin.apt:
+        name: '{{ item }}'
+        state: present
+      loop:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - docker-compose-plugin
+      notify: apply containerd config file
+
+    - name: add key
+      ansible.builtin.apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        keyring: /etc/apt/keyrings/kubernetes-archive-keyring.gpg
+        state: present
+
+    - name: add repo
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main"
+        state: present
+
+    - name: apt update
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: install kubernetes
+      ansible.builtin.apt:
+        name: '{{ item }}'
+        state: present
+      loop:
+        - kubelet
+        - kubeadm
+        - kubectl
+
+    - name: Hold kubernetes
+      ansible.builtin.dpkg_selections:
+        name: '{{ item }}'
+        selection: hold
+      loop:
+        - kubelet
+        - kubeadm
+        - kubectl
+
+  handlers: 
+    - name: apply containerd config file
+      ansible.builtin.shell: containerd config default > /etc/containerd/config.toml
+      notify:
+        - replace systemdgroup
+        - restart containerd
+
+    - name: replace systemdgroup
+      ansible.builtin.shell: sed -i -e 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml 
+
+    - name: restart containerd
+      ansible.builtin.service:
+        name: containerd
+        state: restarted
+

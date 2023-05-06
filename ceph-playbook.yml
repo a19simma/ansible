@@ -1,0 +1,26 @@
+- name: setup ceph dependencies
+  hosts: storage
+  gather_facts: no
+  tasks:
+    - name: install dependencies
+      ansible.builtin.apt:
+        state: present
+        update_cache: yes
+        pkg:
+          - lvm2
+          
+    - name: configure ufw
+      ufw:
+        rule: allow
+        port: '{{ item }}'
+        proto: tcp
+      loop:
+        - '6789'
+        - '3300'
+        - '7000'
+        - '9283'
+        - '80'
+
+    - name: Enable UFW
+      ufw:
+        state: enabled

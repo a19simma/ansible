@@ -1,0 +1,28 @@
+- name: cleanup ceph cluster
+  hosts: storage
+  gather_facts: no
+  tasks:
+    - name: remove host files
+      file:
+        state: absent
+        path: /var/lib/rook
+    - name: remove lvm and dev mappers
+      file: 
+        state: absent
+        path: "{{ item }}"
+      with_fileglob:
+        - "/dev/ceph-*"
+        - "/dev/mapper/ceph-*"
+    - name: install disk tools
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - gdisk
+        - parted
+    - name: zap disk
+      shell: sgdisk --zap-all /dev/sdb
+    - name: wipe large part of the beginning of part
+      shell: dd if=/dev/zero of="/dev/sdb" bs=1M count=100 oflag=direct,dsync
+    - name: 
+      shell: partprobe /dev/sdb

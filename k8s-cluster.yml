@@ -1,0 +1,41 @@
+control:
+  hosts:
+    k8s-burken-control:
+      ansible_host: 192.168.1.6
+      vip_port: 8443
+      vip_server: 192.168.1.10
+      state: BACKUP
+      priority: 254
+      interface: ens18
+    k8s-laptop-control:
+      ansible_host: 192.168.1.8
+      vip_port: 8443
+      vip_server: 192.168.1.10
+      state: MASTER
+      priority: 255
+      interface: ens18
+    k8s-desktop-control:
+      ansible_host: 192.168.1.9
+      vip_port: 8443
+      vip_server: 192.168.1.10
+      state: BACKUP
+      priority: 1
+      interface: ens33
+
+workers:
+  hosts:
+    k8s-burken-worker1:
+      ansible_host: 192.168.1.13
+    k8s-laptop-worker1:
+      ansible_host: 192.168.1.11
+    k8s-desktop-worker1:
+      ansible_host: 192.168.1.16
+
+storage: 
+  hosts:  
+    k8s-burken-worker1:
+      ansible_host: 192.168.1.13
+    k8s-burken-storage:
+      ansible_host: 192.168.1.14
+    k8s-desktop-storage:
+      ansible_host: 192.168.1.17
