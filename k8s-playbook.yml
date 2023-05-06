@@ -1,16 +1,3 @@
-- name: set hostname and hosts file
-  hosts: '*'
-  gather_facts: no
-  tasks:
-    - name: copy hosts file
-      ansible.builtin.copy:
-        src: ./files/hosts
-        dest: /etc/
-        mode: '0644'
-    - name: set hostname
-      ansible.builtin.hostname:
-        name: '{{ inventory_hostname }}'
-
 - name: setup Firewall
   hosts: '*'
   gather_facts: no
@@ -27,6 +14,8 @@
         proto: tcp
       loop:
         - '22'
+        - '80'
+        - '443'
         - '6443'
         - '8443'
         - 2379:2380
